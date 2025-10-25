@@ -78,25 +78,11 @@ contains
         call clear_pane(3, mid_row - 1, mid_col + 1, term_cols)
         call clear_pane(mid_row + 2, term_rows - 2, 1, term_cols)
 
-        ! Draw incoming changes (left pane)
-        if (allocated(conflict%incoming_lines)) then
-            incoming_lines = min(size(conflict%incoming_lines), max_lines)
-            do i = 1, incoming_lines
-                call term_move_cursor(3 + i, 2)
-                line = conflict%incoming_lines(i)
-                write(*, '(A)', advance='no') color_green // '+' // trim(line(1:min(len_trim(line), mid_col - 4))) // color_reset
-            end do
-        end if
+        ! Draw left pane (INCOMING): context + incoming + context
+        call draw_pane_with_context(conflict, 2, mid_col - 4, max_lines, .true.)
 
-        ! Draw local changes (right pane)
-        if (allocated(conflict%local_lines)) then
-            local_lines = min(size(conflict%local_lines), max_lines)
-            do i = 1, local_lines
-                call term_move_cursor(3 + i, mid_col + 2)
-                line = conflict%local_lines(i)
-                write(*, '(A)', advance='no') color_red // '-' // trim(line(1:min(len_trim(line), mid_col - 4))) // color_reset
-            end do
-        end if
+        ! Draw right pane (LOCAL): context + local + context
+        call draw_pane_with_context(conflict, mid_col + 2, term_cols - mid_col - 2, max_lines, .false.)
 
         ! Draw preview based on choice (use larger preview_max_lines)
         call draw_preview(conflict, mid_row, preview_max_lines)
@@ -108,61 +94,159 @@ contains
         call flush(6)
     end subroutine draw_conflict
 
-    ! Draw the preview pane based on current choice
+    ! Draw the preview pane based on current choice (with context)
     subroutine draw_preview(conflict, start_row, max_lines)
         type(conflict_t), intent(in) :: conflict
         integer, intent(in) :: start_row, max_lines
-        integer :: i, n_lines
+        integer :: i, row, n_context_before, n_context_after, n_resolution
         character(len=1024) :: line
 
+        row = start_row + 2
+
+        ! Draw context before (dimmed)
+        if (allocated(conflict%context_before)) then
+            n_context_before = size(conflict%context_before)
+            do i = 1, min(n_context_before, max_lines)
+                if (row > start_row + max_lines) exit
+                call term_move_cursor(row, 2)
+                line = conflict%context_before(i)
+                write(*, '(A)', advance='no') color_dim // ' ' // &
+                      trim(line(1:min(len_trim(line), term_cols - 4))) // color_reset
+                row = row + 1
+            end do
+        end if
+
+        ! Draw resolved content based on choice
         select case (conflict%choice)
         case (1)  ! Incoming
             if (allocated(conflict%incoming_lines)) then
-                n_lines = min(size(conflict%incoming_lines), max_lines)
-                do i = 1, n_lines
-                    call term_move_cursor(start_row + 2 + i, 2)
+                do i = 1, size(conflict%incoming_lines)
+                    if (row > start_row + max_lines) exit
+                    call term_move_cursor(row, 2)
                     line = conflict%incoming_lines(i)
-                    write(*, '(A)', advance='no') trim(line(1:min(len_trim(line), term_cols - 4)))
+                    write(*, '(A)', advance='no') ' ' // trim(line(1:min(len_trim(line), term_cols - 4)))
+                    row = row + 1
                 end do
             end if
 
         case (2)  ! Local
             if (allocated(conflict%local_lines)) then
-                n_lines = min(size(conflict%local_lines), max_lines)
-                do i = 1, n_lines
-                    call term_move_cursor(start_row + 2 + i, 2)
+                do i = 1, size(conflict%local_lines)
+                    if (row > start_row + max_lines) exit
+                    call term_move_cursor(row, 2)
                     line = conflict%local_lines(i)
-                    write(*, '(A)', advance='no') trim(line(1:min(len_trim(line), term_cols - 4)))
+                    write(*, '(A)', advance='no') ' ' // trim(line(1:min(len_trim(line), term_cols - 4)))
+                    row = row + 1
                 end do
             end if
 
         case (3)  ! Both
-            n_lines = 0
             if (allocated(conflict%incoming_lines)) then
-                do i = 1, min(size(conflict%incoming_lines), max_lines)
-                    n_lines = n_lines + 1
-                    call term_move_cursor(start_row + 2 + n_lines, 2)
+                do i = 1, size(conflict%incoming_lines)
+                    if (row > start_row + max_lines) exit
+                    call term_move_cursor(row, 2)
                     line = conflict%incoming_lines(i)
-                    write(*, '(A)', advance='no') trim(line(1:min(len_trim(line), term_cols - 4)))
+                    write(*, '(A)', advance='no') ' ' // trim(line(1:min(len_trim(line), term_cols - 4)))
+                    row = row + 1
                 end do
             end if
-            if (allocated(conflict%local_lines) .and. n_lines < max_lines) then
-                do i = 1, min(size(conflict%local_lines), max_lines - n_lines)
-                    n_lines = n_lines + 1
-                    call term_move_cursor(start_row + 2 + n_lines, 2)
+            if (allocated(conflict%local_lines)) then
+                do i = 1, size(conflict%local_lines)
+                    if (row > start_row + max_lines) exit
+                    call term_move_cursor(row, 2)
                     line = conflict%local_lines(i)
-                    write(*, '(A)', advance='no') trim(line(1:min(len_trim(line), term_cols - 4)))
+                    write(*, '(A)', advance='no') ' ' // trim(line(1:min(len_trim(line), term_cols - 4)))
+                    row = row + 1
                 end do
             end if
 
         case default
             ! No choice yet - show placeholder
-            call term_move_cursor(start_row + 3, 2)
+            call term_move_cursor(row, 2)
             write(*, '(A)', advance='no') color_dim // '(Select incoming, local, or both)' // color_reset
+            row = row + 1
         end select
+
+        ! Draw context after (dimmed)
+        if (allocated(conflict%context_after)) then
+            n_context_after = size(conflict%context_after)
+            do i = 1, min(n_context_after, max_lines - (row - start_row - 2))
+                if (row > start_row + max_lines) exit
+                call term_move_cursor(row, 2)
+                line = conflict%context_after(i)
+                write(*, '(A)', advance='no') color_dim // ' ' // &
+                      trim(line(1:min(len_trim(line), term_cols - 4))) // color_reset
+                row = row + 1
+            end do
+        end if
 
         call flush(6)
     end subroutine draw_preview
+
+    ! Draw a pane with context (before + conflict + after)
+    subroutine draw_pane_with_context(conflict, col_start, max_width, max_lines, is_incoming)
+        type(conflict_t), intent(in) :: conflict
+        integer, intent(in) :: col_start, max_width, max_lines
+        logical, intent(in) :: is_incoming
+        integer :: row, i, n_context_before, n_conflict, n_context_after
+        character(len=1024) :: line
+        character(len=:), allocatable, dimension(:) :: conflict_lines
+
+        row = 4  ! Start after label
+
+        ! Determine which conflict lines to show
+        if (is_incoming) then
+            conflict_lines = conflict%incoming_lines
+        else
+            conflict_lines = conflict%local_lines
+        end if
+
+        ! Draw context before (dimmed)
+        if (allocated(conflict%context_before)) then
+            n_context_before = size(conflict%context_before)
+            do i = 1, min(n_context_before, max_lines)
+                if (row > max_lines + 3) exit
+                call term_move_cursor(row, col_start)
+                line = conflict%context_before(i)
+                write(*, '(A)', advance='no') color_dim // ' ' // &
+                      trim(line(1:min(len_trim(line), max_width))) // color_reset
+                row = row + 1
+            end do
+        end if
+
+        ! Draw conflict lines (colored)
+        if (allocated(conflict_lines)) then
+            n_conflict = size(conflict_lines)
+            do i = 1, min(n_conflict, max_lines - row + 3)
+                if (row > max_lines + 3) exit
+                call term_move_cursor(row, col_start)
+                line = conflict_lines(i)
+                if (is_incoming) then
+                    write(*, '(A)', advance='no') color_green // '+' // &
+                          trim(line(1:min(len_trim(line), max_width))) // color_reset
+                else
+                    write(*, '(A)', advance='no') color_red // '-' // &
+                          trim(line(1:min(len_trim(line), max_width))) // color_reset
+                end if
+                row = row + 1
+            end do
+        end if
+
+        ! Draw context after (dimmed)
+        if (allocated(conflict%context_after)) then
+            n_context_after = size(conflict%context_after)
+            do i = 1, min(n_context_after, max_lines - row + 3)
+                if (row > max_lines + 3) exit
+                call term_move_cursor(row, col_start)
+                line = conflict%context_after(i)
+                write(*, '(A)', advance='no') color_dim // ' ' // &
+                      trim(line(1:min(len_trim(line), max_width))) // color_reset
+                row = row + 1
+            end do
+        end if
+
+        call flush(6)
+    end subroutine draw_pane_with_context
 
     ! Clear a rectangular region
     subroutine clear_pane(row_start, row_end, col_start, col_end)

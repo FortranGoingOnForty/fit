@@ -11,10 +11,15 @@ module conflict_parser
         integer :: end_line                ! Line number where conflict ends
         character(len=:), allocatable :: incoming_branch  ! Branch name from <<<<<<< HEAD
         character(len=:), allocatable :: local_branch     ! Branch name from >>>>>>>
+        character(len=:), allocatable, dimension(:) :: context_before  ! Lines before conflict (context)
         character(len=:), allocatable, dimension(:) :: incoming_lines  ! Lines from incoming
         character(len=:), allocatable, dimension(:) :: local_lines     ! Lines from local
+        character(len=:), allocatable, dimension(:) :: context_after   ! Lines after conflict (context)
         integer :: choice  ! 0=none, 1=incoming, 2=local, 3=both
     end type conflict_t
+
+    ! Number of context lines to show before and after conflict
+    integer, parameter :: CONTEXT_LINES = 5
 
 contains
 
@@ -116,6 +121,10 @@ contains
                 branch_name = adjustl(line(8:))
                 conflicts(n_conflicts)%incoming_branch = trim(branch_name)
 
+                ! Extract context before conflict (up to CONTEXT_LINES)
+                call extract_lines(file_lines, max(1, conflict_start - CONTEXT_LINES), &
+                                   conflict_start - 1, conflicts(n_conflicts)%context_before)
+
             else if (index(trim(line), '=======') == 1 .and. in_conflict) then
                 ! Middle of conflict
                 conflict_middle = line_num
@@ -136,6 +145,11 @@ contains
                 ! Extract local lines
                 call extract_lines(file_lines, conflict_middle + 1, line_num - 1, &
                                    conflicts(n_conflicts)%local_lines)
+
+                ! Extract context after conflict (up to CONTEXT_LINES)
+                call extract_lines(file_lines, line_num + 1, &
+                                   min(n_lines, line_num + CONTEXT_LINES), &
+                                   conflicts(n_conflicts)%context_after)
 
                 in_conflict = .false.
             end if
