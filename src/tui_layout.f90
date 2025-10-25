@@ -15,21 +15,28 @@ contains
     subroutine draw_layout(rows, cols)
         integer, intent(in) :: rows, cols
         integer :: i, mid_col, mid_row
+        character(len=:), allocatable :: border
 
         term_rows = rows
         term_cols = cols
         mid_col = cols / 2
-        mid_row = rows / 2
+        ! Use 40% for top panes, 60% for preview (gives more space to preview)
+        ! Subtract 2 for status bar at bottom
+        mid_row = max(10, int((rows - 2) * 0.4))
+
+        ! Create border string with proper width
+        allocate(character(len=cols) :: border)
+        border = repeat('─', cols)
 
         call term_clear()
 
-        ! Draw top border
+        ! Draw top border (full width)
         call term_move_cursor(1, 1)
-        write(*, '(A)', advance='no') color_cyan // repeat('─', cols) // color_reset
+        write(*, '(A)', advance='no') color_cyan // border // color_reset
 
-        ! Draw middle horizontal divider
+        ! Draw middle horizontal divider (full width)
         call term_move_cursor(mid_row, 1)
-        write(*, '(A)', advance='no') color_cyan // repeat('─', cols) // color_reset
+        write(*, '(A)', advance='no') color_cyan // border // color_reset
 
         ! Draw vertical divider in top half
         do i = 2, mid_row - 1
@@ -47,6 +54,7 @@ contains
         call term_move_cursor(mid_row + 1, 3)
         write(*, '(A)', advance='no') color_bold // color_yellow // 'PREVIEW' // color_reset
 
+        deallocate(border)
         call flush(6)
     end subroutine draw_layout
 
@@ -54,13 +62,16 @@ contains
     subroutine draw_conflict(conflict, current, total)
         type(conflict_t), intent(in) :: conflict
         integer, intent(in) :: current, total
-        integer :: i, mid_col, mid_row, max_lines
+        integer :: i, mid_col, mid_row, max_lines, preview_max_lines
         integer :: incoming_lines, local_lines
         character(len=1024) :: line
 
         mid_col = term_cols / 2
-        mid_row = term_rows / 2
+        ! Use same calculation as draw_layout for consistency
+        mid_row = max(10, int((term_rows - 2) * 0.4))
         max_lines = mid_row - 4  ! Leave room for borders and labels
+        ! Preview gets more space (60% of screen)
+        preview_max_lines = term_rows - mid_row - 4
 
         ! Clear previous content
         call clear_pane(3, mid_row - 1, 1, mid_col - 1)
@@ -87,8 +98,8 @@ contains
             end do
         end if
 
-        ! Draw preview based on choice
-        call draw_preview(conflict, mid_row, max_lines)
+        ! Draw preview based on choice (use larger preview_max_lines)
+        call draw_preview(conflict, mid_row, preview_max_lines)
 
         ! Draw conflict counter
         call term_move_cursor(mid_row, term_cols - 15)
@@ -157,24 +168,47 @@ contains
     subroutine clear_pane(row_start, row_end, col_start, col_end)
         integer, intent(in) :: row_start, row_end, col_start, col_end
         integer :: i, width
+        character(len=:), allocatable :: spaces
 
         width = col_end - col_start + 1
+        allocate(character(len=width) :: spaces)
+        spaces = repeat(' ', width)
+
         do i = row_start, row_end
             call term_move_cursor(i, col_start)
-            write(*, '(A)', advance='no') repeat(' ', width)
+            write(*, '(A)', advance='no') spaces
         end do
+
+        deallocate(spaces)
     end subroutine clear_pane
 
     ! Draw status bar at bottom
     subroutine draw_status_bar(message)
         character(len=*), intent(in) :: message
+        character(len=:), allocatable :: border, padded_msg
+        integer :: msg_len
+
+        ! Create border string with proper width
+        allocate(character(len=term_cols) :: border)
+        border = repeat('─', term_cols)
+
+        ! Create padded message to fill entire status line
+        allocate(character(len=term_cols) :: padded_msg)
+        ! Initialize with spaces
+        padded_msg = repeat(' ', term_cols)
+        ! Copy message (truncated if too long)
+        msg_len = min(len_trim(message), term_cols)
+        if (msg_len > 0) then
+            padded_msg(1:msg_len) = message(1:msg_len)
+        end if
 
         call term_move_cursor(term_rows - 1, 1)
-        write(*, '(A)', advance='no') color_cyan // repeat('─', term_cols) // color_reset
+        write(*, '(A)', advance='no') color_cyan // border // color_reset
 
         call term_move_cursor(term_rows, 1)
-        write(*, '(A)', advance='no') color_bold // trim(message(1:min(len_trim(message), term_cols))) // color_reset
+        write(*, '(A)', advance='no') color_bold // padded_msg // color_reset
 
+        deallocate(border, padded_msg)
         call flush(6)
     end subroutine draw_status_bar
 

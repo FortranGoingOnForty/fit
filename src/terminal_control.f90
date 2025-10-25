@@ -86,41 +86,32 @@ contains
         call flush(6)
     end subroutine term_restore_cursor
 
-    ! Get terminal size (using tput command)
+    ! Get terminal size (using stty size command with /dev/tty)
     subroutine term_get_size(rows, cols, success)
         integer, intent(out) :: rows, cols
         logical, intent(out) :: success
-        character(len=256) :: cmd_output
         integer :: unit, ios
 
         success = .false.
         rows = 24
         cols = 80
 
-        ! Try to get rows
-        open(newunit=unit, file='/tmp/fit_rows.txt', status='replace', action='write')
-        close(unit)
-        call execute_command_line('tput lines > /tmp/fit_rows.txt 2>/dev/null', exitstat=ios)
+        ! Use stty size with /dev/tty to get actual terminal dimensions
+        ! stty size outputs "rows cols" on one line
+        call execute_command_line('stty size < /dev/tty > /tmp/fit_size.txt 2>/dev/null', exitstat=ios)
         if (ios == 0) then
-            open(newunit=unit, file='/tmp/fit_rows.txt', status='old', action='read')
-            read(unit, *, iostat=ios) rows
-            close(unit)
-            if (ios == 0) success = .true.
+            open(newunit=unit, file='/tmp/fit_size.txt', status='old', action='read', iostat=ios)
+            if (ios == 0) then
+                read(unit, *, iostat=ios) rows, cols
+                close(unit)
+                if (ios == 0 .and. rows > 0 .and. cols > 0) then
+                    success = .true.
+                end if
+            end if
         end if
 
-        ! Try to get cols
-        open(newunit=unit, file='/tmp/fit_cols.txt', status='replace', action='write')
-        close(unit)
-        call execute_command_line('tput cols > /tmp/fit_cols.txt 2>/dev/null', exitstat=ios)
-        if (ios == 0) then
-            open(newunit=unit, file='/tmp/fit_cols.txt', status='old', action='read')
-            read(unit, *, iostat=ios) cols
-            close(unit)
-            if (ios == 0) success = .true.
-        end if
-
-        ! Clean up temp files
-        call execute_command_line('rm -f /tmp/fit_rows.txt /tmp/fit_cols.txt 2>/dev/null')
+        ! Clean up temp file
+        call execute_command_line('rm -f /tmp/fit_size.txt 2>/dev/null')
 
     end subroutine term_get_size
 

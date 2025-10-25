@@ -1,0 +1,26 @@
+Simple Merge Conflict Test
+===========================
+
+This is a quick test file for FIT.
+
+<<<<<<< HEAD
+Version A: This line comes from the main branch.
+It contains important updates.
+The feature works perfectly now!
+=======
+Version B: This line comes from the feature branch.
+It has different improvements.
+Testing is complete!
+>>>>>>> feature-branch
+
+Common text after the conflict.
+
+<<<<<<< HEAD
+Second conflict - Option 1
+Using method alpha for processing
+=======
+Second conflict - Option 2
+Using method beta for processing
+>>>>>>> feature-branch
+
+End of file.
