@@ -1,0 +1,22 @@
+# FPM build artifacts
+build/
+*.mod
+*.o
+*.a
+*.so
+*.dylib
+
+# Temporary files
+/tmp/fit_*.tmp
+*.fit_tmp
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

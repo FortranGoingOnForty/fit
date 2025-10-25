@@ -1,0 +1,23 @@
+program hello
+    implicit none
+<<<<<<< HEAD
+    print *, "Hello from main branch!"
+    print *, "This is the incoming change"
+    call new_feature()
+=======
+    print *, "Hello from feature branch!"
+    print *, "This is the local change"
+    call old_function()
+>>>>>>> feature-branch
+
+    print *, "Common code after conflict"
+
+<<<<<<< HEAD
+    ! Another conflict
+    integer :: version = 2
+=======
+    ! Different version
+    integer :: version = 1
+>>>>>>> feature-branch
+
+end program hello

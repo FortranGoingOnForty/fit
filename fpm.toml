@@ -1,0 +1,24 @@
+name = "fit"
+version = "0.1.0"
+license = "MIT"
+author = "mfw espadonne@outlook.com"
+maintainer = "espadonne@outlook.com"
+copyright = "2025 FortranGoingOnForty"
+
+[build]
+auto-executables = true
+auto-tests = true
+auto-examples = false
+
+[fortran]
+implicit-typing = false
+implicit-external = false
+source-form = "free"
+
+[install]
+library = false
+
+[[executable]]
+name = "fit"
+source-dir = "app"
+main = "main.f90"
