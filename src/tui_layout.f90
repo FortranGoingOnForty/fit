@@ -149,15 +149,15 @@ contains
         ! Draw scrollable panes
         call draw_scrollable_pane(incoming_view, n_incoming, 2, mid_col - 4, 4, max_lines, &
                                   pane%scroll_incoming, conflict_start, conflict_end, &
-                                  pane%active_pane == PANE_INCOMING, .true.)
+                                  pane%active_pane == PANE_INCOMING, 1)
 
         call draw_scrollable_pane(local_view, n_local, mid_col + 2, term_cols - mid_col - 2, 4, max_lines, &
                                   pane%scroll_local, conflict_start, conflict_end, &
-                                  pane%active_pane == PANE_LOCAL, .false.)
+                                  pane%active_pane == PANE_LOCAL, 2)
 
         call draw_scrollable_pane(preview_view, n_preview, 2, term_cols - 4, mid_row + 2, preview_max_lines, &
                                   pane%scroll_preview, conflict_start, conflict_end, &
-                                  pane%active_pane == PANE_PREVIEW, .false.)
+                                  pane%active_pane == PANE_PREVIEW, 3)
 
         ! Draw conflict counter
         call term_move_cursor(mid_row, term_cols - 15)
@@ -321,12 +321,14 @@ contains
     end subroutine draw_pane_with_context
 
     ! Draw a scrollable pane with full file content
+    ! pane_type: 1=incoming, 2=local, 3=preview
     subroutine draw_scrollable_pane(file_view, n_lines, col_start, max_width, row_start, max_rows, &
-                                     scroll_offset, conflict_start, conflict_end, is_active, is_incoming)
+                                     scroll_offset, conflict_start, conflict_end, is_active, pane_type)
         character(len=*), dimension(:), intent(in) :: file_view
         integer, intent(in) :: n_lines, col_start, max_width, row_start, max_rows
         integer, intent(in) :: scroll_offset, conflict_start, conflict_end
-        logical, intent(in) :: is_active, is_incoming
+        logical, intent(in) :: is_active
+        integer, intent(in) :: pane_type
         integer :: i, row, file_line
         character(len=1024) :: line
         character(len=10) :: line_num_str
@@ -345,18 +347,22 @@ contains
 
             ! Draw with appropriate coloring
             if (in_conflict) then
-                ! Conflict region - color coded
-                if (is_incoming) then
-                    write(*, '(A)', advance='no') color_green // '+' // &
+                ! Conflict region - color highlighted based on pane type
+                select case (pane_type)
+                case (1)  ! Incoming - green
+                    write(*, '(A)', advance='no') color_green // &
                           trim(line(1:min(len_trim(line), max_width))) // color_reset
-                else
-                    write(*, '(A)', advance='no') color_red // '-' // &
+                case (2)  ! Local - red
+                    write(*, '(A)', advance='no') color_red // &
                           trim(line(1:min(len_trim(line), max_width))) // color_reset
-                end if
+                case (3)  ! Preview - cyan/bold to show resolved result
+                    write(*, '(A)', advance='no') color_cyan // color_bold // &
+                          trim(line(1:min(len_trim(line), max_width))) // color_reset
+                end select
             else
-                ! Normal file content - dimmed
-                write(*, '(A)', advance='no') color_dim // ' ' // &
-                      trim(line(1:min(len_trim(line), max_width))) // color_reset
+                ! Normal file content - show clearly, not dimmed
+                write(*, '(A)', advance='no') &
+                      trim(line(1:min(len_trim(line), max_width)))
             end if
 
             ! Add active pane indicator
