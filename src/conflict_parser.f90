@@ -2,7 +2,7 @@ module conflict_parser
     implicit none
     private
 
-    public :: conflict_t, parse_conflict_file, conflict_count
+    public :: conflict_t, parse_conflict_file, conflict_count, get_file_view
 
     ! Type to hold a single conflict
     type :: conflict_t
@@ -15,6 +15,8 @@ module conflict_parser
         character(len=:), allocatable, dimension(:) :: incoming_lines  ! Lines from incoming
         character(len=:), allocatable, dimension(:) :: local_lines     ! Lines from local
         character(len=:), allocatable, dimension(:) :: context_after   ! Lines after conflict (context)
+        character(len=:), allocatable, dimension(:) :: full_file       ! All lines from the file
+        integer :: total_file_lines        ! Total number of lines in file
         integer :: choice  ! 0=none, 1=incoming, 2=local, 3=both
     end type conflict_t
 
@@ -155,6 +157,15 @@ contains
             end if
         end do
 
+        ! Store full file content in each conflict for scrolling
+        do i = 1, n_conflicts
+            conflicts(i)%total_file_lines = n_lines
+            allocate(character(len=1024) :: conflicts(i)%full_file(n_lines))
+            do line_num = 1, n_lines
+                conflicts(i)%full_file(line_num) = file_lines(line_num)
+            end do
+        end do
+
         success = .true.
 
     end subroutine parse_conflict_file
@@ -195,5 +206,79 @@ contains
 
         call move_alloc(temp, array)
     end subroutine grow_array
+
+    ! Get a view of the file with conflicts resolved
+    ! view_type: 1=incoming, 2=local, 3=preview (uses conflict%choice)
+    subroutine get_file_view(conflict, view_type, file_view, n_lines, conflict_start, conflict_end)
+        type(conflict_t), intent(in) :: conflict
+        integer, intent(in) :: view_type
+        character(len=:), allocatable, dimension(:), intent(out) :: file_view
+        integer, intent(out) :: n_lines
+        integer, intent(out) :: conflict_start, conflict_end
+        integer :: i, j, view_idx, n_conflict_lines
+        character(len=:), allocatable, dimension(:) :: resolution_lines
+
+        ! Start with full file capacity
+        allocate(character(len=1024) :: file_view(conflict%total_file_lines * 2))
+        view_idx = 0
+
+        ! Determine which resolution to use
+        select case (view_type)
+        case (1)  ! Incoming
+            resolution_lines = conflict%incoming_lines
+        case (2)  ! Local
+            resolution_lines = conflict%local_lines
+        case (3)  ! Preview - use chosen resolution
+            select case (conflict%choice)
+            case (1)
+                resolution_lines = conflict%incoming_lines
+            case (2)
+                resolution_lines = conflict%local_lines
+            case (3)  ! Both
+                if (allocated(conflict%incoming_lines) .and. allocated(conflict%local_lines)) then
+                    n_conflict_lines = size(conflict%incoming_lines) + size(conflict%local_lines)
+                    allocate(character(len=1024) :: resolution_lines(n_conflict_lines))
+                    j = 1
+                    do i = 1, size(conflict%incoming_lines)
+                        resolution_lines(j) = conflict%incoming_lines(i)
+                        j = j + 1
+                    end do
+                    do i = 1, size(conflict%local_lines)
+                        resolution_lines(j) = conflict%local_lines(i)
+                        j = j + 1
+                    end do
+                end if
+            end select
+        end select
+
+        ! Build the view: lines before + resolution + lines after
+        conflict_start = 0
+        conflict_end = 0
+
+        ! Copy lines before conflict
+        do i = 1, conflict%start_line - 1
+            view_idx = view_idx + 1
+            file_view(view_idx) = conflict%full_file(i)
+        end do
+
+        ! Insert resolution (mark where conflict region starts)
+        conflict_start = view_idx + 1
+        if (allocated(resolution_lines)) then
+            do i = 1, size(resolution_lines)
+                view_idx = view_idx + 1
+                file_view(view_idx) = resolution_lines(i)
+            end do
+        end if
+        conflict_end = view_idx
+
+        ! Copy lines after conflict
+        do i = conflict%end_line + 1, conflict%total_file_lines
+            view_idx = view_idx + 1
+            file_view(view_idx) = conflict%full_file(i)
+        end do
+
+        n_lines = view_idx
+
+    end subroutine get_file_view
 
 end module conflict_parser

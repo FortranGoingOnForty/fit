@@ -4,6 +4,7 @@ program fit
     use keyboard_input
     use tui_layout
     use resolution_engine
+    use pane_state
     implicit none
 
     character(len=512) :: filename
@@ -13,6 +14,7 @@ program fit
     type(key_t) :: key
     integer :: term_rows, term_cols
     character(len=256) :: status_msg
+    type(pane_t) :: pane
 
     ! Parse command line arguments
     if (command_argument_count() < 1) then
@@ -58,17 +60,20 @@ program fit
     call draw_layout(term_rows, term_cols)
     call draw_help()
 
+    ! Initialize pane state
+    call init_pane_state(pane)
+
     ! Main event loop
     current_conflict = 1
     running = .true.
 
     do while (running)
-        ! Draw current conflict
-        call draw_conflict(conflicts(current_conflict), current_conflict, n_conflicts)
+        ! Draw current conflict with scrolling
+        call draw_conflict_scrollable(conflicts(current_conflict), current_conflict, n_conflicts, pane)
 
         ! Update status message
         write(status_msg, '(A, I0, A, I0, A)') &
-            '[i]ncoming [l]ocal [b]oth | [n]ext [p]rev | [s]ave [q]uit  (', &
+            '[i/l/b] choose | [←→] switch pane | [↑↓] scroll | [n/p] conflict | [s]ave [q]uit  (', &
             current_conflict, '/', n_conflicts, ')'
         call draw_status_bar(status_msg)
 
@@ -84,28 +89,43 @@ program fit
         case (KEY_I)
             ! Select incoming
             conflicts(current_conflict)%choice = 1
-            call draw_conflict(conflicts(current_conflict), current_conflict, n_conflicts)
 
         case (KEY_L)
             ! Select local
             conflicts(current_conflict)%choice = 2
-            call draw_conflict(conflicts(current_conflict), current_conflict, n_conflicts)
 
         case (KEY_B)
             ! Select both
             conflicts(current_conflict)%choice = 3
-            call draw_conflict(conflicts(current_conflict), current_conflict, n_conflicts)
 
-        case (KEY_N, KEY_DOWN, KEY_RIGHT)
+        case (KEY_UP)
+            ! Scroll up in active pane
+            call scroll_up(pane)
+
+        case (KEY_DOWN)
+            ! Scroll down in active pane
+            call scroll_down(pane, max(10, int((term_rows - 2) * 0.4)) - 4)
+
+        case (KEY_LEFT)
+            ! Select previous pane
+            call select_prev_pane(pane)
+
+        case (KEY_RIGHT)
+            ! Select next pane
+            call select_next_pane(pane)
+
+        case (KEY_N)
             ! Next conflict
             if (current_conflict < n_conflicts) then
                 current_conflict = current_conflict + 1
+                call reset_scroll(pane)
             end if
 
-        case (KEY_P, KEY_UP, KEY_LEFT)
+        case (KEY_P)
             ! Previous conflict
             if (current_conflict > 1) then
                 current_conflict = current_conflict - 1
+                call reset_scroll(pane)
             end if
 
         case (KEY_S)

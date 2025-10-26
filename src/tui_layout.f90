@@ -1,10 +1,11 @@
 module tui_layout
     use terminal_control
     use conflict_parser
+    use pane_state
     implicit none
     private
 
-    public :: draw_layout, draw_conflict, draw_status_bar, draw_help
+    public :: draw_layout, draw_conflict_scrollable, draw_status_bar, draw_help
 
     integer :: term_rows = 24
     integer :: term_cols = 80
@@ -12,9 +13,10 @@ module tui_layout
 contains
 
     ! Initialize and draw the basic layout
-    subroutine draw_layout(rows, cols)
+    subroutine draw_layout(rows, cols, active_pane)
         integer, intent(in) :: rows, cols
-        integer :: i, mid_col, mid_row
+        integer, intent(in), optional :: active_pane
+        integer :: i, mid_col, mid_row, pane_id
         character(len=:), allocatable :: border
 
         term_rows = rows
@@ -23,6 +25,9 @@ contains
         ! Use 40% for top panes, 60% for preview (gives more space to preview)
         ! Subtract 2 for status bar at bottom
         mid_row = max(10, int((rows - 2) * 0.4))
+
+        pane_id = 1
+        if (present(active_pane)) pane_id = active_pane
 
         ! Create border string with proper width
         allocate(character(len=cols) :: border)
@@ -44,15 +49,27 @@ contains
             write(*, '(A)', advance='no') color_cyan // '│' // color_reset
         end do
 
-        ! Draw labels
+        ! Draw labels with active highlighting
         call term_move_cursor(2, 3)
-        write(*, '(A)', advance='no') color_bold // color_yellow // 'INCOMING' // color_reset
+        if (pane_id == PANE_INCOMING) then
+            write(*, '(A)', advance='no') color_bold // bg_green // color_black // ' INCOMING ' // color_reset
+        else
+            write(*, '(A)', advance='no') color_bold // color_yellow // 'INCOMING' // color_reset
+        end if
 
         call term_move_cursor(2, mid_col + 3)
-        write(*, '(A)', advance='no') color_bold // color_yellow // 'LOCAL' // color_reset
+        if (pane_id == PANE_LOCAL) then
+            write(*, '(A)', advance='no') color_bold // bg_red // color_white // ' LOCAL ' // color_reset
+        else
+            write(*, '(A)', advance='no') color_bold // color_yellow // 'LOCAL' // color_reset
+        end if
 
         call term_move_cursor(mid_row + 1, 3)
-        write(*, '(A)', advance='no') color_bold // color_yellow // 'PREVIEW' // color_reset
+        if (pane_id == PANE_PREVIEW) then
+            write(*, '(A)', advance='no') color_bold // bg_blue // color_white // ' PREVIEW ' // color_reset
+        else
+            write(*, '(A)', advance='no') color_bold // color_yellow // 'PREVIEW' // color_reset
+        end if
 
         deallocate(border)
         call flush(6)
@@ -93,6 +110,59 @@ contains
 
         call flush(6)
     end subroutine draw_conflict
+
+    ! Draw a conflict with scrollable panes
+    subroutine draw_conflict_scrollable(conflict, current, total, pane)
+        type(conflict_t), intent(inout) :: conflict
+        integer, intent(in) :: current, total
+        type(pane_t), intent(inout) :: pane
+        integer :: mid_col, mid_row, max_lines, preview_max_lines
+        character(len=:), allocatable, dimension(:) :: incoming_view, local_view, preview_view
+        integer :: n_incoming, n_local, n_preview
+        integer :: conflict_start, conflict_end
+
+        mid_col = term_cols / 2
+        mid_row = max(10, int((term_rows - 2) * 0.4))
+        max_lines = mid_row - 4
+        preview_max_lines = term_rows - mid_row - 4
+
+        ! Redraw layout with active pane highlighted
+        call draw_layout(term_rows, term_cols, pane%active_pane)
+
+        ! Get full file views
+        call get_file_view(conflict, 1, incoming_view, n_incoming, conflict_start, conflict_end)
+        call get_file_view(conflict, 2, local_view, n_local, conflict_start, conflict_end)
+        call get_file_view(conflict, 3, preview_view, n_preview, conflict_start, conflict_end)
+
+        ! Update pane max lines
+        pane%max_lines_incoming = n_incoming
+        pane%max_lines_local = n_local
+        pane%max_lines_preview = n_preview
+
+        ! Clear previous content
+        call clear_pane(3, mid_row - 1, 1, mid_col - 1)
+        call clear_pane(3, mid_row - 1, mid_col + 1, term_cols)
+        call clear_pane(mid_row + 2, term_rows - 2, 1, term_cols)
+
+        ! Draw scrollable panes
+        call draw_scrollable_pane(incoming_view, n_incoming, 2, mid_col - 4, 4, max_lines, &
+                                  pane%scroll_incoming, conflict_start, conflict_end, &
+                                  pane%active_pane == PANE_INCOMING, .true.)
+
+        call draw_scrollable_pane(local_view, n_local, mid_col + 2, term_cols - mid_col - 2, 4, max_lines, &
+                                  pane%scroll_local, conflict_start, conflict_end, &
+                                  pane%active_pane == PANE_LOCAL, .false.)
+
+        call draw_scrollable_pane(preview_view, n_preview, 2, term_cols - 4, mid_row + 2, preview_max_lines, &
+                                  pane%scroll_preview, conflict_start, conflict_end, &
+                                  pane%active_pane == PANE_PREVIEW, .false.)
+
+        ! Draw conflict counter
+        call term_move_cursor(mid_row, term_cols - 15)
+        write(*, '(A, I0, A, I0, A)', advance='no') color_cyan // '[ ', current, ' / ', total, ' ]' // color_reset
+
+        call flush(6)
+    end subroutine draw_conflict_scrollable
 
     ! Draw the preview pane based on current choice (with context)
     subroutine draw_preview(conflict, start_row, max_lines)
@@ -247,6 +317,83 @@ contains
 
         call flush(6)
     end subroutine draw_pane_with_context
+
+    ! Draw a scrollable pane with full file content
+    subroutine draw_scrollable_pane(file_view, n_lines, col_start, max_width, row_start, max_rows, &
+                                     scroll_offset, conflict_start, conflict_end, is_active, is_incoming)
+        character(len=*), dimension(:), intent(in) :: file_view
+        integer, intent(in) :: n_lines, col_start, max_width, row_start, max_rows
+        integer, intent(in) :: scroll_offset, conflict_start, conflict_end
+        logical, intent(in) :: is_active, is_incoming
+        integer :: i, row, file_line
+        character(len=1024) :: line
+        character(len=10) :: line_num_str
+        logical :: in_conflict
+
+        row = row_start
+        do i = 1, max_rows
+            file_line = scroll_offset + i
+            if (file_line > n_lines) exit
+
+            ! Determine if this line is in the conflict region
+            in_conflict = (file_line >= conflict_start .and. file_line <= conflict_end)
+
+            call term_move_cursor(row, col_start)
+            line = file_view(file_line)
+
+            ! Draw with appropriate coloring
+            if (in_conflict) then
+                ! Conflict region - color coded
+                if (is_incoming) then
+                    write(*, '(A)', advance='no') color_green // '+' // &
+                          trim(line(1:min(len_trim(line), max_width))) // color_reset
+                else
+                    write(*, '(A)', advance='no') color_red // '-' // &
+                          trim(line(1:min(len_trim(line), max_width))) // color_reset
+                end if
+            else
+                ! Normal file content - dimmed
+                write(*, '(A)', advance='no') color_dim // ' ' // &
+                      trim(line(1:min(len_trim(line), max_width))) // color_reset
+            end if
+
+            ! Add active pane indicator
+            if (is_active .and. i == 1) then
+                call term_move_cursor(row, col_start + max_width + 2)
+                write(*, '(A)', advance='no') color_yellow // '◀' // color_reset
+            end if
+
+            row = row + 1
+        end do
+
+        ! Draw scroll indicator
+        if (n_lines > max_rows) then
+            call draw_scroll_indicator(col_start + max_width + 1, row_start, max_rows, scroll_offset, n_lines)
+        end if
+
+        call flush(6)
+    end subroutine draw_scrollable_pane
+
+    ! Draw a scroll position indicator
+    subroutine draw_scroll_indicator(col, row_start, pane_height, scroll_offset, total_lines)
+        integer, intent(in) :: col, row_start, pane_height, scroll_offset, total_lines
+        integer :: indicator_pos, i
+        real :: scroll_ratio
+
+        ! Calculate indicator position
+        scroll_ratio = real(scroll_offset) / real(max(1, total_lines - pane_height))
+        indicator_pos = row_start + int(scroll_ratio * (pane_height - 1))
+
+        ! Draw scroll bar
+        do i = row_start, row_start + pane_height - 1
+            call term_move_cursor(i, col)
+            if (i == indicator_pos) then
+                write(*, '(A)', advance='no') color_cyan // '█' // color_reset
+            else
+                write(*, '(A)', advance='no') color_dim // '│' // color_reset
+            end if
+        end do
+    end subroutine draw_scroll_indicator
 
     ! Clear a rectangular region
     subroutine clear_pane(row_start, row_end, col_start, col_end)

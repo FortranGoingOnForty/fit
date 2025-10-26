@@ -30,7 +30,8 @@ contains
 
     ! Enable raw mode (no buffering, no echo)
     subroutine enable_raw_mode()
-        call execute_command_line('stty -echo -icanon min 1 time 0 2>/dev/null', wait=.true.)
+        ! Raw mode - we'll handle multi-byte sequences in get_key()
+        call execute_command_line('stty -echo -icanon 2>/dev/null', wait=.true.)
     end subroutine enable_raw_mode
 
     ! Disable raw mode (restore normal terminal)
@@ -38,53 +39,68 @@ contains
         call execute_command_line('stty echo icanon 2>/dev/null', wait=.true.)
     end subroutine disable_raw_mode
 
-    ! Get a single key press using dd command
+    ! Get a single key press
     function get_key() result(key)
         type(key_t) :: key
-        character(len=10) :: buffer
-        integer :: unit, ios, i
-        character :: c
+        character :: c1, c2, c3
+        integer :: unit, ios, file_size
+        logical :: file_exists
 
         key%code = KEY_NONE
         key%char = ' '
-        buffer = ''
 
-        ! Use dd to read a single character with timeout
-        call execute_command_line('dd bs=1 count=1 2>/dev/null > /tmp/fit_key.tmp', wait=.true.)
+        ! Use Perl to read with proper timeout handling
+        ! Reads 1 byte, if ESC reads 2 more with 50ms timeout
+        call execute_command_line( &
+            'perl -e ''use Time::HiRes qw(usleep); ' // &
+            'open(TTY, "</dev/tty"); ' // &
+            'sysread(TTY, $c, 1); print $c; ' // &
+            'if(ord($c)==27){usleep(10000); sysread(TTY, $m, 2); print $m;} ' // &
+            'close(TTY);'' ' // &
+            '> /tmp/fit_key.tmp 2>/dev/null', &
+            wait=.true.)
+
+        inquire(file='/tmp/fit_key.tmp', exist=file_exists, size=file_size)
+        if (.not. file_exists .or. file_size == 0) return
 
         open(newunit=unit, file='/tmp/fit_key.tmp', status='old', action='read', &
              form='unformatted', access='stream', iostat=ios)
         if (ios /= 0) return
 
-        ! Read up to 3 bytes for escape sequences
-        do i = 1, 3
-            read(unit, iostat=ios) c
-            if (ios /= 0) exit
-            buffer(i:i) = c
-        end do
-        close(unit)
+        ! Read first byte
+        read(unit, iostat=ios) c1
+        if (ios /= 0) then
+            close(unit)
+            return
+        end if
 
-        ! Parse the buffer
-        if (len_trim(buffer) == 0) return
+        key%char = c1
+        key%code = ichar(c1)
 
-        key%char = buffer(1:1)
-        key%code = ichar(buffer(1:1))
-
-        ! Check for escape sequences (arrow keys)
-        if (key%code == KEY_ESC .and. len_trim(buffer) >= 3) then
-            if (buffer(2:2) == '[') then
-                select case (buffer(3:3))
-                case ('A')
-                    key%code = KEY_UP
-                case ('B')
-                    key%code = KEY_DOWN
-                case ('C')
-                    key%code = KEY_RIGHT
-                case ('D')
-                    key%code = KEY_LEFT
-                end select
+        ! Check if we got an arrow key sequence (3 bytes total)
+        if (key%code == KEY_ESC .and. file_size >= 3) then
+            read(unit, iostat=ios) c2
+            if (ios == 0) then
+                read(unit, iostat=ios) c3
+                if (ios == 0 .and. c2 == '[') then
+                    select case (c3)
+                    case ('A')
+                        key%code = KEY_UP
+                    case ('B')
+                        key%code = KEY_DOWN
+                    case ('C')
+                        key%code = KEY_RIGHT
+                    case ('D')
+                        key%code = KEY_LEFT
+                    end select
+                end if
             end if
         end if
+
+        close(unit)
+
+        ! Clean up temp file
+        call execute_command_line('rm -f /tmp/fit_key.tmp 2>/dev/null', wait=.true.)
 
     end function get_key
 
