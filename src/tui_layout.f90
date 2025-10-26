@@ -119,7 +119,9 @@ contains
         integer :: mid_col, mid_row, max_lines, preview_max_lines
         character(len=:), allocatable, dimension(:) :: incoming_view, local_view, preview_view
         integer :: n_incoming, n_local, n_preview
-        integer :: conflict_start, conflict_end
+        integer :: incoming_start, incoming_end
+        integer :: local_start, local_end
+        integer :: preview_start, preview_end
 
         mid_col = term_cols / 2
         mid_row = max(10, int((term_rows - 2) * 0.4))
@@ -130,11 +132,11 @@ contains
         call draw_layout(term_rows, term_cols, pane%active_pane)
 
         ! Get side views - show incoming/local for current conflict, all others resolved
-        call get_side_view(conflicts, n_conflicts, current, 1, incoming_view, n_incoming, conflict_start, conflict_end)
-        call get_side_view(conflicts, n_conflicts, current, 2, local_view, n_local, conflict_start, conflict_end)
+        call get_side_view(conflicts, n_conflicts, current, 1, incoming_view, n_incoming, incoming_start, incoming_end)
+        call get_side_view(conflicts, n_conflicts, current, 2, local_view, n_local, local_start, local_end)
 
         ! Get full preview with ALL conflicts resolved
-        call get_full_preview(conflicts, n_conflicts, current, preview_view, n_preview, conflict_start, conflict_end)
+        call get_full_preview(conflicts, n_conflicts, current, preview_view, n_preview, preview_start, preview_end)
 
         ! Update pane max lines
         pane%max_lines_incoming = n_incoming
@@ -146,17 +148,17 @@ contains
         call clear_pane(3, mid_row - 1, mid_col + 1, term_cols)
         call clear_pane(mid_row + 2, term_rows - 2, 1, term_cols)
 
-        ! Draw scrollable panes
+        ! Draw scrollable panes - each with its own conflict region
         call draw_scrollable_pane(incoming_view, n_incoming, 2, mid_col - 4, 4, max_lines, &
-                                  pane%scroll_incoming, conflict_start, conflict_end, &
+                                  pane%scroll_incoming, incoming_start, incoming_end, &
                                   pane%active_pane == PANE_INCOMING, 1)
 
         call draw_scrollable_pane(local_view, n_local, mid_col + 2, term_cols - mid_col - 2, 4, max_lines, &
-                                  pane%scroll_local, conflict_start, conflict_end, &
+                                  pane%scroll_local, local_start, local_end, &
                                   pane%active_pane == PANE_LOCAL, 2)
 
         call draw_scrollable_pane(preview_view, n_preview, 2, term_cols - 4, mid_row + 2, preview_max_lines, &
-                                  pane%scroll_preview, conflict_start, conflict_end, &
+                                  pane%scroll_preview, preview_start, preview_end, &
                                   pane%active_pane == PANE_PREVIEW, 3)
 
         ! Draw conflict counter
