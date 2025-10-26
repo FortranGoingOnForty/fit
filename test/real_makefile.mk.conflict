@@ -1,0 +1,28 @@
+CC = gcc
+<<<<<<< HEAD
+CFLAGS = -Wall -O3 -march=native
+=======
+CFLAGS = -Wall -O2 -g
+>>>>>>> debug/flags
+
+SRCS = main.c utils.c
+OBJS = $(SRCS:.c=.o)
+<<<<<<< HEAD
+TARGET = myapp
+=======
+TARGET = myapp.exe
+>>>>>>> windows/port
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+<<<<<<< HEAD
+	$(CC) $(CFLAGS) -o $@ $^ -lm -lpthread
+=======
+	$(CC) $(CFLAGS) -o $@ $^ -lm
+>>>>>>> feature/threading
+
+clean:
+	rm -f $(OBJS) $(TARGET)
+
+.PHONY: all clean

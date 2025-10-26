@@ -1,0 +1,73 @@
+File with 10 conflicts to test navigation and resolution
+
+Conflict 1:
+<<<<<<< HEAD
+Incoming 1
+=======
+Local 1
+>>>>>>> b1
+
+Conflict 2:
+<<<<<<< HEAD
+Incoming 2
+=======
+Local 2
+>>>>>>> b2
+
+Conflict 3:
+<<<<<<< HEAD
+Incoming 3
+=======
+Local 3
+>>>>>>> b3
+
+Conflict 4:
+<<<<<<< HEAD
+Incoming 4
+=======
+Local 4
+>>>>>>> b4
+
+Conflict 5:
+<<<<<<< HEAD
+Incoming 5
+=======
+Local 5
+>>>>>>> b5
+
+Conflict 6:
+<<<<<<< HEAD
+Incoming 6
+=======
+Local 6
+>>>>>>> b6
+
+Conflict 7:
+<<<<<<< HEAD
+Incoming 7
+=======
+Local 7
+>>>>>>> b7
+
+Conflict 8:
+<<<<<<< HEAD
+Incoming 8
+=======
+Local 8
+>>>>>>> b8
+
+Conflict 9:
+<<<<<<< HEAD
+Incoming 9
+=======
+Local 9
+>>>>>>> b9
+
+Conflict 10:
+<<<<<<< HEAD
+Incoming 10
+=======
+Local 10
+>>>>>>> b10
+
+End of file

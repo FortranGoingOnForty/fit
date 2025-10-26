@@ -1,0 +1,43 @@
+File with 10 conflicts to test navigation and resolution
+
+Conflict 1:
+Incoming 1
+Local 1
+
+Conflict 2:
+Incoming 2
+Local 2
+
+Conflict 3:
+Incoming 3
+Local 3
+
+Conflict 4:
+Incoming 4
+Local 4
+
+Conflict 5:
+Incoming 5
+Local 5
+
+Conflict 6:
+Incoming 6
+Local 6
+
+Conflict 7:
+Incoming 7
+Local 7
+
+Conflict 8:
+Incoming 8
+Local 8
+
+Conflict 9:
+Incoming 9
+Local 9
+
+Conflict 10:
+Incoming 10
+Local 10
+
+End of file

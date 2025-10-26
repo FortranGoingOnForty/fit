@@ -1,0 +1,13 @@
+<<<<<<< HEAD
+Conflict at very start - incoming
+=======
+Conflict at very start - local
+>>>>>>> feature
+Middle content here
+No conflicts in this section
+This is regular content
+<<<<<<< HEAD
+Conflict at very end - incoming
+=======
+Conflict at very end - local
+>>>>>>> feature

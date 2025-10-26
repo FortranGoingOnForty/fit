@@ -1,0 +1,5 @@
+Normal line before conflict
+This is also a very long line but with different content that will also wrap in terminal displays and it talks about something else entirely with different words and different phrasing but still goes on for quite a while to ensure that the line wrapping functionality is properly tested across both sides of the conflict
+Normal line after conflict
+
+Another extremely long line on the local side that contains detailed information about various topics including but not limited to software development practices code quality standards testing methodologies continuous integration deployment strategies monitoring solutions performance optimization techniques and many other related subjects that are important in modern software engineering

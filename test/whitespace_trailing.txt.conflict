@@ -1,0 +1,20 @@
+Line with content
+<<<<<<< HEAD
+This line has trailing spaces
+Another line here
+=======
+This line has no trailing spaces
+Another line here
+>>>>>>> feature/cleanup
+
+<<<<<<< HEAD
+Empty lines below:
+
+
+=======
+Empty lines below (different count):
+
+
+
+>>>>>>> feature/spacing
+Final line

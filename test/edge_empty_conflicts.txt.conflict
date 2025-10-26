@@ -1,0 +1,16 @@
+Header line
+<<<<<<< HEAD
+=======
+>>>>>>> feature/empty-incoming
+
+Some middle content
+<<<<<<< HEAD
+Incoming content here
+=======
+>>>>>>> feature/empty-local
+
+Footer line
+<<<<<<< HEAD
+=======
+Both sides empty
+>>>>>>> feature/empty-both

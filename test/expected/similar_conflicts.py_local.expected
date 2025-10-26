@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""
+Database configuration module
+"""
+
+import os
+from typing import Dict, Optional
+
+# Staging database settings
+DATABASE_CONFIG = {
+    'host': 'staging.example.com',
+    'port': 5432,
+    'database': 'staging_db',
+    'user': 'staging_user',
+    'password': os.environ.get('DB_PASSWORD'),
+    'pool_size': 10,
+    'timeout': 30
+}
+
+class DatabaseConnection:
+    def __init__(self, config: Dict):
+        self.config = config
+        self.connection = None
+
+    def connect(self):
+        """Establish database connection"""
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                self.connection = create_connection(self.config)
+                print(f"Connected to {self.config['host']} (staging)")
+                return True
+            except ConnectionError as e:
+                print(f"Connection attempt {attempt + 1} failed: {e}")
+                if attempt == max_retries - 1:
+                    raise
+        return False
+
+    def disconnect(self):
+        if self.connection:
+            self.connection.close()
+            print("Disconnected from staging database")
+            self.connection = None
+
+def get_connection() -> Optional[DatabaseConnection]:
+    """Factory function to create database connection"""
+    # Use staging settings
+    return DatabaseConnection(DATABASE_CONFIG)
+
+if __name__ == '__main__':
+    conn = get_connection()
+    if conn.connect():
+        print("Database connection successful!")
+        conn.disconnect()

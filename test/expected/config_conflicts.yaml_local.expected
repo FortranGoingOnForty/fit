@@ -1,0 +1,35 @@
+application:
+  name: MyApp
+  version: "2.0.1"
+  environment: production
+
+server:
+  host: 0.0.0.0
+  port: 8000
+  workers: 4
+  timeout: 60
+
+database:
+  engine: postgresql
+  host: db-primary.example.com
+  port: 5433
+  name: myapp_prod
+  pool:
+    min_size: 5
+    max_size: 20
+
+logging:
+  level: DEBUG
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  handlers:
+    - console
+    - syslog
+  file:
+    path: /var/log/myapp.log
+    max_size: 100MB
+    backup_count: 10
+
+cache:
+  enabled: true
+  backend: memcached
+  ttl: 1800

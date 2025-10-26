@@ -1,0 +1,19 @@
+CC = gcc
+CFLAGS = -Wall -O3 -march=native
+CFLAGS = -Wall -O2 -g
+
+SRCS = main.c utils.c
+OBJS = $(SRCS:.c=.o)
+TARGET = myapp
+TARGET = myapp.exe
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ -lm -lpthread
+	$(CC) $(CFLAGS) -o $@ $^ -lm
+
+clean:
+	rm -f $(OBJS) $(TARGET)
+
+.PHONY: all clean

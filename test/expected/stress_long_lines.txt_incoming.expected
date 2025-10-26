@@ -1,0 +1,5 @@
+Normal line before conflict
+This is a very long line that will likely wrap in most terminal displays and editors because it contains a lot of text that goes on and on and on and describes something in great detail with many words and phrases strung together to create a single continuous line of text that tests the wrapping behavior
+Normal line after conflict
+
+Short incoming line

@@ -1,0 +1,15 @@
+Before conflict
+<<<<<<< HEAD
+Version 2.0
+=======
+Version 1.5
+>>>>>>> hotfix
+After first conflict
+
+Another line
+<<<<<<< HEAD
+x
+=======
+y
+>>>>>>> branch
+Final line

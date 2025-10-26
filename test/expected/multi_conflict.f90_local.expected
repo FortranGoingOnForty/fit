@@ -1,0 +1,38 @@
+module math_utils
+    implicit none
+    private
+
+    public :: add, subtract, multiply
+
+    ! Version 1.5 API
+
+contains
+
+    function add(a, b) result(c)
+        real, intent(in) :: a, b
+        real :: c
+        c = a + b
+        ! Simple addition
+    end function add
+
+    function subtract(a, b) result(c)
+        real, intent(in) :: a, b
+        real :: c
+        c = a - b
+    end function subtract
+
+    function multiply(a, b) result(c)
+        real, intent(in) :: a, b
+        real :: c
+        ! Use logarithms for large numbers
+        if (abs(a) > 1.0e30 .or. abs(b) > 1.0e30) then
+            c = exp(log(abs(a)) + log(abs(b)))
+            c = c * sign(1.0, a) * sign(1.0, b)
+        else
+            c = a * b
+        end if
+    end function multiply
+
+    ! Divide function removed - use multiply with reciprocal
+
+end module math_utils

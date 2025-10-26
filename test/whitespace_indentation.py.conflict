@@ -1,0 +1,25 @@
+def process_data(data):
+<<<<<<< HEAD
+    # Using 4 spaces
+    if data:
+        result = transform(data)
+        return result
+=======
+	# Using tabs
+	if data:
+		result = transform(data)
+		return result
+>>>>>>> feature/tabs
+
+    return None
+
+class DataProcessor:
+<<<<<<< HEAD
+    def __init__(self):
+        self.data = []
+        self.processed = False
+=======
+    def __init__(self):
+      self.data = []
+      self.processed = False
+>>>>>>> feature/2space

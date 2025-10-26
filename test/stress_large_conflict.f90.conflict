@@ -1,0 +1,107 @@
+module large_conflict_test
+    implicit none
+    private
+
+    public :: process_array
+
+contains
+
+<<<<<<< HEAD
+    ! Version A: Bubble sort implementation
+    subroutine process_array(arr, n)
+        integer, intent(in) :: n
+        real, intent(inout) :: arr(n)
+        integer :: i, j
+        real :: temp
+        logical :: swapped
+
+        do i = 1, n-1
+            swapped = .false.
+            do j = 1, n-i
+                if (arr(j) > arr(j+1)) then
+                    temp = arr(j)
+                    arr(j) = arr(j+1)
+                    arr(j+1) = temp
+                    swapped = .true.
+                end if
+            end do
+            if (.not. swapped) exit
+        end do
+
+        ! Normalize array
+        temp = maxval(arr)
+        if (temp > 0.0) then
+            arr = arr / temp
+        end if
+
+        ! Apply transformation
+        do i = 1, n
+            arr(i) = sqrt(abs(arr(i)))
+        end do
+=======
+    ! Version B: Quicksort implementation
+    subroutine process_array(arr, n)
+        integer, intent(in) :: n
+        real, intent(inout) :: arr(n)
+
+        call quicksort(arr, 1, n)
+
+        ! Standardize array
+        real :: mean, stddev
+        mean = sum(arr) / real(n)
+        stddev = sqrt(sum((arr - mean)**2) / real(n))
+
+        if (stddev > 0.0) then
+            arr = (arr - mean) / stddev
+        end if
+
+        ! Apply logarithmic transformation
+        integer :: i
+        do i = 1, n
+            if (arr(i) > 0.0) then
+                arr(i) = log(arr(i) + 1.0)
+            else
+                arr(i) = 0.0
+            end if
+        end do
+
+    end subroutine process_array
+
+    recursive subroutine quicksort(arr, left, right)
+        real, intent(inout) :: arr(:)
+        integer, intent(in) :: left, right
+        integer :: pivot_idx
+
+        if (left < right) then
+            pivot_idx = partition(arr, left, right)
+            call quicksort(arr, left, pivot_idx - 1)
+            call quicksort(arr, pivot_idx + 1, right)
+        end if
+    end subroutine quicksort
+
+    function partition(arr, left, right) result(pivot_idx)
+        real, intent(inout) :: arr(:)
+        integer, intent(in) :: left, right
+        integer :: pivot_idx, i, j
+        real :: pivot, temp
+
+        pivot = arr(right)
+        i = left - 1
+
+        do j = left, right - 1
+            if (arr(j) <= pivot) then
+                i = i + 1
+                temp = arr(i)
+                arr(i) = arr(j)
+                arr(j) = temp
+            end if
+        end do
+
+        temp = arr(i + 1)
+        arr(i + 1) = arr(right)
+        arr(right) = temp
+        pivot_idx = i + 1
+    end function partition
+>>>>>>> feature/quicksort
+
+end module large_conflict_test

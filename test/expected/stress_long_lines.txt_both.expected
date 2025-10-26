@@ -1,0 +1,7 @@
+Normal line before conflict
+This is a very long line that will likely wrap in most terminal displays and editors because it contains a lot of text that goes on and on and on and describes something in great detail with many words and phrases strung together to create a single continuous line of text that tests the wrapping behavior
+This is also a very long line but with different content that will also wrap in terminal displays and it talks about something else entirely with different words and different phrasing but still goes on for quite a while to ensure that the line wrapping functionality is properly tested across both sides of the conflict
+Normal line after conflict
+
+Short incoming line
+Another extremely long line on the local side that contains detailed information about various topics including but not limited to software development practices code quality standards testing methodologies continuous integration deployment strategies monitoring solutions performance optimization techniques and many other related subjects that are important in modern software engineering

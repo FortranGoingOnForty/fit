@@ -1,0 +1,35 @@
+application:
+  name: MyApp
+  version: "2.1.0"
+  environment: production
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  workers: 4
+  timeout: 60
+
+database:
+  engine: postgresql
+  host: db.prod.example.com
+  port: 5432
+  name: myapp_production
+  pool:
+    min_size: 5
+    max_size: 20
+
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - console
+    - file
+  file:
+    path: /var/log/myapp.log
+    max_size: 100MB
+    backup_count: 10
+
+cache:
+  enabled: true
+  backend: redis
+  ttl: 3600

@@ -1,0 +1,61 @@
+module math_utils
+    implicit none
+    private
+
+    public :: add, subtract, multiply, divide
+
+    ! Version 2.0 API
+    public :: add, subtract, multiply
+
+    ! Version 1.5 API
+
+contains
+
+    function add(a, b) result(c)
+        real, intent(in) :: a, b
+        real :: c
+        ! Improved precision
+        c = a + b
+        ! Log operation
+        print *, "Adding:", a, "+", b, "=", c
+        c = a + b
+        ! Simple addition
+    end function add
+
+    function subtract(a, b) result(c)
+        real, intent(in) :: a, b
+        real :: c
+        c = a - b
+    end function subtract
+
+    function multiply(a, b) result(c)
+        real, intent(in) :: a, b
+        real :: c
+        c = a * b
+        ! Check for overflow
+        if (abs(c) > huge(c) * 0.9) then
+            print *, "Warning: potential overflow"
+        end if
+        ! Use logarithms for large numbers
+        if (abs(a) > 1.0e30 .or. abs(b) > 1.0e30) then
+            c = exp(log(abs(a)) + log(abs(b)))
+            c = c * sign(1.0, a) * sign(1.0, b)
+        else
+            c = a * b
+        end if
+    end function multiply
+
+    function divide(a, b) result(c)
+        real, intent(in) :: a, b
+        real :: c
+
+        if (abs(b) < epsilon(b)) then
+            print *, "Error: division by zero"
+            c = 0.0
+        else
+            c = a / b
+        end if
+    end function divide
+    ! Divide function removed - use multiply with reciprocal
+
+end module math_utils

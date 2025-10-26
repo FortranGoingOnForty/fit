@@ -1,0 +1,12 @@
+def process_data(data):
+    # Using 4 spaces
+    if data:
+        result = transform(data)
+        return result
+
+    return None
+
+class DataProcessor:
+    def __init__(self):
+        self.data = []
+        self.processed = False

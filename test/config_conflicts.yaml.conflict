@@ -1,0 +1,62 @@
+application:
+  name: MyApp
+<<<<<<< HEAD
+  version: "2.1.0"
+=======
+  version: "2.0.1"
+>>>>>>> hotfix/version
+  environment: production
+
+server:
+  host: 0.0.0.0
+<<<<<<< HEAD
+  port: 8080
+=======
+  port: 8000
+>>>>>>> feature/port-change
+  workers: 4
+  timeout: 60
+
+database:
+  engine: postgresql
+<<<<<<< HEAD
+  host: db.prod.example.com
+  port: 5432
+  name: myapp_production
+=======
+  host: db-primary.example.com
+  port: 5433
+  name: myapp_prod
+>>>>>>> refactor/db-config
+  pool:
+    min_size: 5
+    max_size: 20
+
+logging:
+<<<<<<< HEAD
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    - console
+    - file
+=======
+  level: DEBUG
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  handlers:
+    - console
+    - syslog
+>>>>>>> feature/enhanced-logging
+  file:
+    path: /var/log/myapp.log
+    max_size: 100MB
+    backup_count: 10
+
+cache:
+  enabled: true
+<<<<<<< HEAD
+  backend: redis
+  ttl: 3600
+=======
+  backend: memcached
+  ttl: 1800
+>>>>>>> experiment/cache-backend

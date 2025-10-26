@@ -1,0 +1,17 @@
+Start of file
+<<<<<<< HEAD
+First conflict incoming
+=======
+First conflict local
+>>>>>>> branch1
+<<<<<<< HEAD
+Second conflict incoming
+=======
+Second conflict local
+>>>>>>> branch2
+<<<<<<< HEAD
+Third conflict incoming
+=======
+Third conflict local
+>>>>>>> branch3
+End of file
