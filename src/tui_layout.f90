@@ -112,9 +112,9 @@ contains
     end subroutine draw_conflict
 
     ! Draw a conflict with scrollable panes
-    subroutine draw_conflict_scrollable(conflict, current, total, pane)
-        type(conflict_t), intent(inout) :: conflict
-        integer, intent(in) :: current, total
+    subroutine draw_conflict_scrollable(conflicts, n_conflicts, current, pane)
+        type(conflict_t), intent(inout) :: conflicts(:)
+        integer, intent(in) :: n_conflicts, current
         type(pane_t), intent(inout) :: pane
         integer :: mid_col, mid_row, max_lines, preview_max_lines
         character(len=:), allocatable, dimension(:) :: incoming_view, local_view, preview_view
@@ -129,10 +129,12 @@ contains
         ! Redraw layout with active pane highlighted
         call draw_layout(term_rows, term_cols, pane%active_pane)
 
-        ! Get full file views
-        call get_file_view(conflict, 1, incoming_view, n_incoming, conflict_start, conflict_end)
-        call get_file_view(conflict, 2, local_view, n_local, conflict_start, conflict_end)
-        call get_file_view(conflict, 3, preview_view, n_preview, conflict_start, conflict_end)
+        ! Get side views - show incoming/local for current conflict, all others resolved
+        call get_side_view(conflicts, n_conflicts, current, 1, incoming_view, n_incoming, conflict_start, conflict_end)
+        call get_side_view(conflicts, n_conflicts, current, 2, local_view, n_local, conflict_start, conflict_end)
+
+        ! Get full preview with ALL conflicts resolved
+        call get_full_preview(conflicts, n_conflicts, current, preview_view, n_preview, conflict_start, conflict_end)
 
         ! Update pane max lines
         pane%max_lines_incoming = n_incoming
@@ -159,7 +161,7 @@ contains
 
         ! Draw conflict counter
         call term_move_cursor(mid_row, term_cols - 15)
-        write(*, '(A, I0, A, I0, A)', advance='no') color_cyan // '[ ', current, ' / ', total, ' ]' // color_reset
+        write(*, '(A, I0, A, I0, A)', advance='no') color_cyan // '[ ', current, ' / ', n_conflicts, ' ]' // color_reset
 
         call flush(6)
     end subroutine draw_conflict_scrollable

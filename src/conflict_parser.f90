@@ -2,7 +2,7 @@ module conflict_parser
     implicit none
     private
 
-    public :: conflict_t, parse_conflict_file, conflict_count, get_file_view
+    public :: conflict_t, parse_conflict_file, conflict_count, get_file_view, get_full_preview, get_side_view
 
     ! Type to hold a single conflict
     type :: conflict_t
@@ -280,5 +280,190 @@ contains
         n_lines = view_idx
 
     end subroutine get_file_view
+
+    ! Get a full preview with ALL conflicts resolved
+    subroutine get_full_preview(conflicts, n_conflicts, current_idx, file_view, n_lines, conflict_start, conflict_end)
+        type(conflict_t), intent(in) :: conflicts(:)
+        integer, intent(in) :: n_conflicts, current_idx
+        character(len=:), allocatable, dimension(:), intent(out) :: file_view
+        integer, intent(out) :: n_lines
+        integer, intent(out) :: conflict_start, conflict_end
+        integer :: i, j, view_idx, line_num, n_res_lines
+        character(len=:), allocatable, dimension(:) :: resolution_lines
+        logical :: in_conflict
+        integer :: conflict_idx
+
+        if (n_conflicts == 0 .or. .not. allocated(conflicts(1)%full_file)) return
+
+        ! Allocate output
+        allocate(character(len=1024) :: file_view(conflicts(1)%total_file_lines * 2))
+        view_idx = 0
+        conflict_start = 0
+        conflict_end = 0
+
+        ! Walk through the file line by line
+        line_num = 1
+        do while (line_num <= conflicts(1)%total_file_lines)
+            ! Check if this line starts a conflict
+            in_conflict = .false.
+            do i = 1, n_conflicts
+                if (line_num == conflicts(i)%start_line) then
+                    in_conflict = .true.
+                    conflict_idx = i
+
+                    ! Mark if this is the current conflict
+                    if (i == current_idx) then
+                        conflict_start = view_idx + 1
+                    end if
+
+                    ! Get resolution for this conflict
+                    select case (conflicts(i)%choice)
+                    case (1)  ! Incoming
+                        resolution_lines = conflicts(i)%incoming_lines
+                    case (2)  ! Local
+                        resolution_lines = conflicts(i)%local_lines
+                    case (3)  ! Both
+                        if (allocated(conflicts(i)%incoming_lines) .and. allocated(conflicts(i)%local_lines)) then
+                            n_res_lines = size(conflicts(i)%incoming_lines) + size(conflicts(i)%local_lines)
+                            allocate(character(len=1024) :: resolution_lines(n_res_lines))
+                            do j = 1, size(conflicts(i)%incoming_lines)
+                                resolution_lines(j) = conflicts(i)%incoming_lines(j)
+                            end do
+                            do j = 1, size(conflicts(i)%local_lines)
+                                resolution_lines(size(conflicts(i)%incoming_lines) + j) = conflicts(i)%local_lines(j)
+                            end do
+                        end if
+                    case default  ! No choice yet - show incoming
+                        resolution_lines = conflicts(i)%incoming_lines
+                    end select
+
+                    ! Add resolution lines
+                    if (allocated(resolution_lines)) then
+                        do j = 1, size(resolution_lines)
+                            view_idx = view_idx + 1
+                            file_view(view_idx) = resolution_lines(j)
+                        end do
+                        deallocate(resolution_lines)
+                    end if
+
+                    ! Mark end if this is the current conflict
+                    if (i == current_idx) then
+                        conflict_end = view_idx
+                    end if
+
+                    ! Skip to end of conflict
+                    line_num = conflicts(i)%end_line + 1
+                    exit
+                end if
+            end do
+
+            ! If not in conflict, copy the line
+            if (.not. in_conflict) then
+                view_idx = view_idx + 1
+                file_view(view_idx) = conflicts(1)%full_file(line_num)
+                line_num = line_num + 1
+            end if
+        end do
+
+        n_lines = view_idx
+
+    end subroutine get_full_preview
+
+    ! Get a view showing a specific side (incoming/local) for current conflict, all others resolved
+    subroutine get_side_view(conflicts, n_conflicts, current_idx, side, file_view, n_lines, conflict_start, conflict_end)
+        type(conflict_t), intent(in) :: conflicts(:)
+        integer, intent(in) :: n_conflicts, current_idx
+        integer, intent(in) :: side  ! 1=incoming, 2=local
+        character(len=:), allocatable, dimension(:), intent(out) :: file_view
+        integer, intent(out) :: n_lines
+        integer, intent(out) :: conflict_start, conflict_end
+        integer :: i, j, view_idx, line_num, n_res_lines
+        character(len=:), allocatable, dimension(:) :: resolution_lines
+        logical :: in_conflict
+
+        if (n_conflicts == 0 .or. .not. allocated(conflicts(1)%full_file)) return
+
+        ! Allocate output
+        allocate(character(len=1024) :: file_view(conflicts(1)%total_file_lines * 2))
+        view_idx = 0
+        conflict_start = 0
+        conflict_end = 0
+
+        ! Walk through the file line by line
+        line_num = 1
+        do while (line_num <= conflicts(1)%total_file_lines)
+            ! Check if this line starts a conflict
+            in_conflict = .false.
+            do i = 1, n_conflicts
+                if (line_num == conflicts(i)%start_line) then
+                    in_conflict = .true.
+
+                    ! Mark if this is the current conflict
+                    if (i == current_idx) then
+                        conflict_start = view_idx + 1
+                    end if
+
+                    ! Get resolution for this conflict
+                    if (i == current_idx) then
+                        ! For current conflict, use specified side
+                        if (side == 1) then
+                            resolution_lines = conflicts(i)%incoming_lines
+                        else
+                            resolution_lines = conflicts(i)%local_lines
+                        end if
+                    else
+                        ! For other conflicts, use their choice (or incoming if no choice)
+                        select case (conflicts(i)%choice)
+                        case (1)
+                            resolution_lines = conflicts(i)%incoming_lines
+                        case (2)
+                            resolution_lines = conflicts(i)%local_lines
+                        case (3)  ! Both
+                            if (allocated(conflicts(i)%incoming_lines) .and. allocated(conflicts(i)%local_lines)) then
+                                n_res_lines = size(conflicts(i)%incoming_lines) + size(conflicts(i)%local_lines)
+                                allocate(character(len=1024) :: resolution_lines(n_res_lines))
+                                do j = 1, size(conflicts(i)%incoming_lines)
+                                    resolution_lines(j) = conflicts(i)%incoming_lines(j)
+                                end do
+                                do j = 1, size(conflicts(i)%local_lines)
+                                    resolution_lines(size(conflicts(i)%incoming_lines) + j) = conflicts(i)%local_lines(j)
+                                end do
+                            end if
+                        case default  ! No choice yet - show incoming
+                            resolution_lines = conflicts(i)%incoming_lines
+                        end select
+                    end if
+
+                    ! Add resolution lines
+                    if (allocated(resolution_lines)) then
+                        do j = 1, size(resolution_lines)
+                            view_idx = view_idx + 1
+                            file_view(view_idx) = resolution_lines(j)
+                        end do
+                        deallocate(resolution_lines)
+                    end if
+
+                    ! Mark end if this is the current conflict
+                    if (i == current_idx) then
+                        conflict_end = view_idx
+                    end if
+
+                    ! Skip to end of conflict
+                    line_num = conflicts(i)%end_line + 1
+                    exit
+                end if
+            end do
+
+            ! If not in conflict, copy the line
+            if (.not. in_conflict) then
+                view_idx = view_idx + 1
+                file_view(view_idx) = conflicts(1)%full_file(line_num)
+                line_num = line_num + 1
+            end if
+        end do
+
+        n_lines = view_idx
+
+    end subroutine get_side_view
 
 end module conflict_parser

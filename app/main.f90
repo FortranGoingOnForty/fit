@@ -7,10 +7,10 @@ program fit
     use pane_state
     implicit none
 
-    character(len=512) :: filename
+    character(len=512) :: filename, arg
     type(conflict_t), allocatable :: conflicts(:)
-    integer :: n_conflicts, current_conflict, ios
-    logical :: success, running
+    integer :: n_conflicts, current_conflict, ios, i, auto_choice
+    logical :: success, running, interactive_mode
     type(key_t) :: key
     integer :: term_rows, term_cols
     character(len=256) :: status_msg
@@ -18,11 +18,36 @@ program fit
 
     ! Parse command line arguments
     if (command_argument_count() < 1) then
-        print '(A)', 'Usage: fit <file-with-conflicts>'
+        print '(A)', 'Usage: fit <file-with-conflicts> [--incoming|--local|--both]'
+        print '(A)', '  --incoming, -i  : Auto-resolve all conflicts with incoming changes'
+        print '(A)', '  --local, -l     : Auto-resolve all conflicts with local changes'
+        print '(A)', '  --both, -b      : Auto-resolve all conflicts with both changes'
         stop 1
     end if
 
     call get_command_argument(1, filename)
+
+    ! Check for non-interactive mode flags
+    interactive_mode = .true.
+    auto_choice = 0  ! 0=none, 1=incoming, 2=local, 3=both
+
+    do i = 2, command_argument_count()
+        call get_command_argument(i, arg)
+        select case (trim(arg))
+        case ('--incoming', '-i')
+            interactive_mode = .false.
+            auto_choice = 1
+        case ('--local', '-l')
+            interactive_mode = .false.
+            auto_choice = 2
+        case ('--both', '-b')
+            interactive_mode = .false.
+            auto_choice = 3
+        case default
+            print '(A)', 'Error: Unknown argument: ' // trim(arg)
+            stop 1
+        end select
+    end do
 
     ! Check if file exists
     open(unit=99, file=trim(filename), status='old', iostat=ios)
@@ -43,6 +68,33 @@ program fit
     if (n_conflicts == 0) then
         print '(A)', 'No merge conflicts found in ' // trim(filename)
         stop 0
+    end if
+
+    ! Handle non-interactive mode
+    if (.not. interactive_mode) then
+        ! Apply auto_choice to all conflicts
+        do i = 1, n_conflicts
+            conflicts(i)%choice = auto_choice
+        end do
+
+        ! Write resolved file
+        call write_resolved_file(trim(filename), conflicts, n_conflicts, success)
+
+        if (success) then
+            select case (auto_choice)
+            case (1)
+                print '(A, I0, A)', 'Resolved ', n_conflicts, ' conflicts with INCOMING changes'
+            case (2)
+                print '(A, I0, A)', 'Resolved ', n_conflicts, ' conflicts with LOCAL changes'
+            case (3)
+                print '(A, I0, A)', 'Resolved ', n_conflicts, ' conflicts with BOTH changes'
+            end select
+            print '(A)', 'File saved: ' // trim(filename)
+            stop 0
+        else
+            print '(A)', 'Error: Failed to write resolved file'
+            stop 1
+        end if
     end if
 
     ! Initialize terminal
@@ -68,8 +120,8 @@ program fit
     running = .true.
 
     do while (running)
-        ! Draw current conflict with scrolling
-        call draw_conflict_scrollable(conflicts(current_conflict), current_conflict, n_conflicts, pane)
+        ! Draw current conflict with scrolling (preview shows ALL conflicts resolved)
+        call draw_conflict_scrollable(conflicts, n_conflicts, current_conflict, pane)
 
         ! Update status message
         write(status_msg, '(A, I0, A, I0, A)') &
